@@ -2,7 +2,7 @@ import time
 import menu
 
 def play_game():
-    total_time = 3  # 3 Minuten in Sekunden
+    total_time = 3  # 3 minutes in seconds
     start_time = time.time()
     while True:
         elapsed = time.time() - start_time
