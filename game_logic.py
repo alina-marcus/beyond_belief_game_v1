@@ -1,19 +1,21 @@
-import random
 import os
+import random
 import textwrap
-import menu
 import time
 
 import gpt_api
-import wiki_api
 import lie_gen
+import menu
+import wiki_api
 
+# Terminal color codes
 GREEN = "\033[92m"
-RED = '\033[91m'
+RED = "\033[91m"
 RESET = "\033[0m"
 
+# Game constants
 LIVES = 3
-TOTAL_TIME = 60 * 5 # 5 mi
+TOTAL_TIME = 60 * 5  # 5 minutes
 
 truth_quotes = [
     "You're right — this story was entirely made up.",
@@ -30,7 +32,7 @@ truth_quotes = [
     "It sounds like a fairytale because it is one.",
     "The origins of this story? Our imagination.",
     "As convincing as it is — it’s not real.",
-    "A story that bends reality — all the way into fiction."
+    "A story that bends reality — all the way into fiction.",
 ]
 
 lie_quotes = [
@@ -48,11 +50,12 @@ lie_quotes = [
     "It wasn’t an invention — this story is truly real.",
     "You thought we fooled you, but this story is actually true.",
     "There’s no doubt — this really happened.",
-    "We tested you — and you were wrong."
+    "We tested you — and you were wrong.",
 ]
 
+
 def clear_screen():
-    """Clears the screen"""
+    """Clears the terminal screen."""
     if os.name == 'nt':
         os.system('cls')
     else:
@@ -61,7 +64,12 @@ def clear_screen():
         else:
             print("\n" * 100)
 
+
 def get_sentences_for_game():
+    """
+    Retrieves three sentences from a spooky Wikipedia page,
+    replaces one with a generated lie, and returns them along with the page title and index of the lie.
+    """
     page_title, sentences = wiki_api.get_valid_wikipedia_page_info(spooky=True)
     selected_sentences = random.sample(sentences[:6], 3)
     lie_index = random.randrange(3)
@@ -75,14 +83,19 @@ def get_sentences_for_game():
         original_sentence = selected_sentences[lie_index]
         attempts += 1
 
-    #selected_sentences[lie_index] = lie_gen.generate_lie(original_sentence)
     selected_sentences[lie_index] = gpt_api.get_gpt_lie(original_sentence)
-
     return page_title, selected_sentences, lie_index
 
+
 def print_boxed_text(lines, title=None):
-    """Prints a formatted box with optional title"""
-    max_width = 117  # angepasste Breite
+    """
+    Prints a box around a list of text lines with an optional title.
+
+    Args:
+        lines (list): List of strings to display.
+        title (str, optional): Optional title string.
+    """
+    max_width = 117
     print(f"{GREEN}╔" + "═" * max_width + "╗")
     if title:
         title_lines = textwrap.wrap(title, max_width)
@@ -94,17 +107,22 @@ def print_boxed_text(lines, title=None):
             print(f" {w_line.ljust(max_width)} ")
     print("╚" + "═" * max_width + "╝" + f"{RESET}")
 
+
 def print_lives_and_points(lives, points, time_left_formatted):
+    """
+    Displays lives, points, and time left in a styled box.
+
+    Args:
+        lives (int): Number of remaining lives.
+        points (int): Player's current score.
+        time_left_formatted (str): Formatted remaining time.
+    """
     lives_str = f"Lives: {lives * '❤️ '}".strip()
     points_str = f"Points: {points}"
     time_left_str = f"    Time Left: {time_left_formatted}"
 
     max_width = 117
-    left_section_width = len(lives_str) + 1
-    right_section_width = len(points_str) + 1
-    time_section_width = len(time_left_str)
-
-    total_content_width = left_section_width + right_section_width + time_section_width
+    total_content_width = len(lives_str) + len(points_str) + len(time_left_str) + 2
     middle_spacing = (max_width - total_content_width) // 2
 
     line = f"{lives_str}{' ' * middle_spacing}{time_left_str}{' ' * middle_spacing}{points_str}"
@@ -115,8 +133,15 @@ def print_lives_and_points(lives, points, time_left_formatted):
 
 
 def print_wrapped_sentence(index, sentence):
+    """
+    Prints a single sentence with a number label in a styled box.
+
+    Args:
+        index (int): Sentence number (1-based).
+        sentence (str): The sentence text.
+    """
     max_width = 117
-    wrapped = textwrap.wrap(sentence, width=max_width - 5)  # Platz für Nummerierung
+    wrapped = textwrap.wrap(sentence, width=max_width - 5)
     print("╔" + "═" * max_width + "╗")
     for i, line in enumerate(wrapped):
         if i == 0:
@@ -127,14 +152,29 @@ def print_wrapped_sentence(index, sentence):
 
 
 def display_sentences(page_title, sentences):
+    """
+    Displays the Wikipedia page title and three sentences in boxes.
+
+    Args:
+        page_title (str): Title of the Wikipedia article.
+        sentences (list): List of sentence strings.
+    """
     print_boxed_text([], title=f"    Wikipedia Article: {page_title}")
     for idx, sentence in enumerate(sentences, 1):
         print_wrapped_sentence(idx, sentence)
 
+
 def main_game_loop():
+    """
+    Executes a single round of the game: shows sentences and gets player input.
+
+    Returns:
+        bool: True if the player guessed correctly, False otherwise.
+    """
     page_title, sentences, lie_index = get_sentences_for_game()
     display_sentences(page_title, sentences)
     print_boxed_text(["    What's the lie? (1-3)", ""])
+
     while True:
         try:
             choice = int(input(f"{GREEN}     Type here and press Enter: {RESET}"))
@@ -156,23 +196,37 @@ def main_game_loop():
         print(f"     The correct answer was: {lie_index + 1}{RESET}")
         return False
 
+
 def play_game():
+    """
+    Main game loop that manages lives, score, and time tracking.
+    Ends when time is up or lives are lost.
+
+    Returns:
+        int: Final player score.
+    """
     lives_count = LIVES
     points_count = 0
 
     total_time = TOTAL_TIME
     start_time = time.time()
+
     while True:
         clear_screen()
         elapsed = time.time() - start_time
         time_left = total_time - elapsed
-        minutes_left = int(time_left // 60)
-        seconds_left = int(time_left % 60)
-        time_left_formatted = f"{minutes_left:02}:{seconds_left:02}"
+
+        if time_left <= 0:
+            menu.display_game_over_screen(points_count)
+            break
+
+        time_left_formatted = f"{int(time_left // 60):02}:{int(time_left % 60):02}"
         print_lives_and_points(lives_count, points_count, time_left_formatted)
+
         if main_game_loop():
             points_count += 1
-            print_boxed_text([f"    You have {points_count} point!" if points_count == 1 else f"You have {points_count} points!"])
+            print_boxed_text([f"    You have {points_count} point!" if points_count == 1
+                              else f"You have {points_count} points!"])
         else:
             lives_count -= 1
             if lives_count > 0:
@@ -181,14 +235,10 @@ def play_game():
                 menu.display_game_over_screen(points_count)
                 break
 
-        elapsed = time.time() - start_time
-        if elapsed >= total_time:
-            menu.display_game_over_screen(points_count)
-            break
-
         input(f"{GREEN}     Press Enter to continue {RESET}")
+
     return points_count
+
 
 if __name__ == "__main__":
     play_game()
-
